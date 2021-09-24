@@ -2,11 +2,15 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.constants import unit
 from statsmodels.tsa.api import SimpleExpSmoothing, ExponentialSmoothing
+import statsmodels.api as sm
+from statsmodels.tsa.api import ExponentialSmoothing, SimpleExpSmoothing, Holt
+
+
 
 
 def main():
     plt.close("all")
-    data = pd.read_excel('data/ALPHS_FC.xlsx',
+    data = pd.read_excel("C:\\Users\\Goshko\\Desktop\\ops\\ALPHS_FC.xlsx",
                          sheet_name='FC 3 mth horizon',
                          header=1)
     filtered_data = data[(data['Material Group'] == 'ALPHS') & (data['Company code'] == 'BGE')]
@@ -27,6 +31,14 @@ def main():
     print(unit_data)
     print()
     print(f_cast3)
+    print()
+
+    #arima fkacst
+    mod = sm.tsa.arima.ARIMA(unit_data.values, order=(2, 2, 2))
+    res = mod.fit()
+    resultato = res.forecast(10)
+    print(resultato)
+
     exit(1)
 
     fig = plt.figure(figsize=(15, 5), facecolor='w')

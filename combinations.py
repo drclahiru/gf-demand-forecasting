@@ -5,7 +5,7 @@ from statsmodels.tsa.api import SimpleExpSmoothing
 
 def main():
     plt.close("all")
-    data = pd.read_excel('data/ALPHS_FC.xlsx',
+    data = pd.read_excel("C:\\Users\\Goshko\\Desktop\\ops\\ALPHS_FC.xlsx",
                          sheet_name='FC 3 mth horizon',
                          header=1)
     for company_code in set(data['Company code']):
