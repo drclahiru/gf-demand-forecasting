@@ -1,22 +1,20 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.constants import unit
-from statsmodels.tsa.api import SimpleExpSmoothing, ExponentialSmoothing
 import statsmodels.api as sm
 from statsmodels.tsa.api import ExponentialSmoothing, SimpleExpSmoothing, Holt
 
 
-
-
 def main():
     plt.close("all")
-    data = pd.read_excel("C:\\Users\\Goshko\\Desktop\\ops\\ALPHS_FC.xlsx",
+    data = pd.read_excel("data\\ALPHS_FC.xlsx",
                          sheet_name='FC 3 mth horizon',
                          header=1)
     filtered_data = data[(data['Material Group'] == 'ALPHS') & (data['Company code'] == 'BGE')]
     index = pd.date_range(start="10/2018", end="10/2019", freq="M")
     print(filtered_data["ZPC"].values)
-    print(filtered_data["Cal. year / month"].values)
+    print(len(filtered_data["Cal. year / month"].values))
+    exit(1)
     unit_data = pd.Series(filtered_data["ZPC"].values[1:-14], index)
     # ax = unit_data.plot()
     # ax.set_xlabel("Months")
@@ -25,7 +23,8 @@ def main():
     # plt.figure(figsize=(12, 8))
     # plt.show()
 
-    fit3 = SimpleExpSmoothing(unit_data.values, initialization_method="known", initial_level=1113.547).fit(optimized=False, smoothing_level=0.2)
+    fit3 = SimpleExpSmoothing(unit_data.values, initialization_method="known", initial_level=1113.547).fit(
+        optimized=False, smoothing_level=0.2)
     f_cast3 = fit3.forecast(10)
     print()
     print(unit_data)
@@ -33,7 +32,7 @@ def main():
     print(f_cast3)
     print()
 
-    #arima fkacst
+    # arima fkacst
     mod = sm.tsa.arima.ARIMA(unit_data.values, order=(2, 2, 2))
     res = mod.fit()
     resultato = res.forecast(10)
