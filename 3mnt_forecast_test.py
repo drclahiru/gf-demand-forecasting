@@ -7,9 +7,10 @@ from statsmodels.tsa.holtwinters import ExponentialSmoothing as HWES
 
 # needed for ets and holt's
 WINDOW_SIZE = 10
-SMOOTH_LVL = 1
+FORECAST_SIZE = 3
+SMOOTH_LVL = .2
 # only needed for holt's
-SMOOTH_SLOPE = .25
+SMOOTH_SLOPE = .90
 # only needed for holt's damped method
 DAMPED_TREND = .88
 
@@ -17,7 +18,7 @@ COMPANY_CODE = 'BGE'
 MATERIAL_GROUP = 'ALPHS'
 
 # ets or holts or holts_damped or holts_winters
-FORECAST_TYPE = 'ets'
+FORECAST_TYPE = 'holts_damped'
 
 
 def calculate_relative_error(predictions, test):
@@ -26,26 +27,15 @@ def calculate_relative_error(predictions, test):
     return bias
 
 
-def holts_winters_forecasting(unit_data):
-    train = unit_data.iloc[:WINDOW_SIZE]
-    train.index = pd.to_datetime(train.index)
-
-    model = HWES(train.values, trend='mul', seasonal='mul', seasonal_periods=12)
-    model._index = pd.to_datetime(train.index)
-
-    model_fit = model.fit()
-    print(model_fit.summary())
-    predictions = model_fit.forecast(len(unit_data) - WINDOW_SIZE + 1)
-    return predictions, model_fit
-
-
-def holts_dampening_forecasting(unit_data):
-    predictions = []
+def holts_dampening_forecasting_3_mnt(unit_data):
     model_fit = None
-    for i in range(len(unit_data) - WINDOW_SIZE + 1):
-        train = unit_data.iloc[i:WINDOW_SIZE + i]
+    predictions = []
+    for j in range(FORECAST_SIZE):
+        temp = unit_data.iloc[:WINDOW_SIZE + j]
+        train = temp.copy()
         train.index = pd.to_datetime(train.index)
-
+        for k in range(j):
+            train.values[-(k + 1)] = predictions[-(k + 1)]
         model = Holt(train.values, damped_trend=True)
         model._index = pd.to_datetime(train.index)
 
@@ -56,13 +46,15 @@ def holts_dampening_forecasting(unit_data):
     return predictions, model_fit
 
 
-def holts_forecasting(unit_data):
-    predictions = []
+def holts_forecasting_3_mnt(unit_data):
     model_fit = None
-    for i in range(len(unit_data) - WINDOW_SIZE + 1):
-        train = unit_data.iloc[i:WINDOW_SIZE + i]
+    predictions = []
+    for j in range(FORECAST_SIZE):
+        temp = unit_data.iloc[:WINDOW_SIZE + j]
+        train = temp.copy()
         train.index = pd.to_datetime(train.index)
-
+        for k in range(j):
+            train.values[-(k + 1)] = predictions[-(k + 1)]
         model = Holt(train.values)
         model._index = pd.to_datetime(train.index)
 
@@ -73,13 +65,15 @@ def holts_forecasting(unit_data):
     return predictions, model_fit
 
 
-def ets_forecasting(unit_data):
-    predictions = []
+def ets_forecasting_3_mnt(unit_data):
     model_fit = None
-    for i in range(len(unit_data) - WINDOW_SIZE + 1):
-        train = unit_data.iloc[i:WINDOW_SIZE + i]
+    predictions = []
+    for j in range(FORECAST_SIZE):
+        temp = unit_data.iloc[:WINDOW_SIZE + j]
+        train = temp.copy()
         train.index = pd.to_datetime(train.index)
-
+        for k in range(j):
+            train.values[-(k + 1)] = predictions[-(k + 1)]
         model = SimpleExpSmoothing(train.values)
         model._index = pd.to_datetime(train.index)
 
@@ -144,17 +138,15 @@ def main():
                         unit_max = max(filtered_data["ZPC"].values)
                         # execute the exponential/holts smoothing forecast
                         if FORECAST_TYPE == 'holts':
-                            predictions, fit = holts_forecasting(unit_data)
+                            predictions, fit = holts_forecasting_3_mnt(unit_data)
                         elif FORECAST_TYPE == 'holts_damped':
-                            predictions, fit = holts_dampening_forecasting(unit_data)
-                        elif FORECAST_TYPE == 'holts_winters':
-                            predictions, fit = holts_winters_forecasting(unit_data)
+                            predictions, fit = holts_dampening_forecasting_3_mnt(unit_data)
                         else:
-                            predictions, fit = ets_forecasting(unit_data)
+                            predictions, fit = ets_forecasting_3_mnt(unit_data)
                         # seperate the inital train data and the comparison test data from the total unit data
                         train = unit_data.iloc[:WINDOW_SIZE]
                         train.index = pd.to_datetime(train.index)
-                        test = unit_data.iloc[WINDOW_SIZE - 1:]
+                        test = unit_data.iloc[WINDOW_SIZE - 1: WINDOW_SIZE - 1 + FORECAST_SIZE]
                         test.index = pd.to_datetime(test.index)
                         rel_error = calculate_relative_error(predictions, test.values)
                         print(f"Relative Error = {rel_error}")

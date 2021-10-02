@@ -14,7 +14,7 @@ def exponential_smoothing(x, alpha, s=None):
 
 
 def main():
-    data = pd.read_excel("C:\\Users\\Goshko\\Desktop\\ops\\ALPHS_FC.xlsx",
+    data = pd.read_excel('data/ALPHS_FC.xlsx',
                          sheet_name='FC 3 mth horizon',
                          header=1)
     print("Material groups")
