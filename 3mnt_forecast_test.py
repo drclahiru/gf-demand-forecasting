@@ -1,9 +1,6 @@
-import datetime
-
 import pandas as pd
 import matplotlib.pyplot as plt
 from statsmodels.tsa.api import SimpleExpSmoothing, Holt
-from statsmodels.tsa.holtwinters import ExponentialSmoothing as HWES
 
 # needed for ets and holt's
 WINDOW_SIZE = 10
