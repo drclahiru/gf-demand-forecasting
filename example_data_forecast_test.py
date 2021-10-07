@@ -1,15 +1,16 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-from statsmodels.tsa.api import SimpleExpSmoothing, Holt
+from statsmodels.tsa.api import Holt
 
 EXAMPLE_DATAS = [("daily-min-temperatures-1981-1990.csv", 'D'), ("daily-total-female-births-1959.csv", 'D'),
                  ("monthly-sunspots-1784-1993.csv", 'MS'), ("retail_sales_used_car_dealers_us_1992_2020.csv", 'MS')]
+USED_EXAMPLE = EXAMPLE_DATAS[2]
 
 WINDOW_SIZE = 10
 FORECAST_SIZE = 3
-SMOOTH_LVL = 0.2
-SMOOTH_SLOPE = .7
-DAMPED_TREND = .88
+SMOOTH_LVL = .4
+SMOOTH_SLOPE = 0.7
+DAMPED_TREND = 0.88
 
 
 def holts_dampening_forecasting_3_mnt(unit_data):
@@ -21,9 +22,9 @@ def holts_dampening_forecasting_3_mnt(unit_data):
         train.index = pd.to_datetime(train.index)
         for k in range(j):
             train.values[-(k + 1)] = predictions[-(k + 1)]
+
         model = Holt(train.values, damped_trend=True)
         model._index = pd.to_datetime(train.index)
-
         model_fit = model.fit(smoothing_level=SMOOTH_LVL, smoothing_trend=SMOOTH_SLOPE, damping_trend=DAMPED_TREND)
         pred1 = model_fit.forecast(1)
         predictions.append(pred1)
@@ -52,7 +53,7 @@ def plot_data(train, test, predictions, fit, unit_max):
 
 def main():
     plt.close("all")
-    example_data = EXAMPLE_DATAS[3]
+    example_data = USED_EXAMPLE
     series = pd.read_csv(f"example_data\\{example_data[0]}", header=0, parse_dates=[0], index_col=0, squeeze=True,
                          dayfirst=True)
     series = series.asfreq(example_data[1])

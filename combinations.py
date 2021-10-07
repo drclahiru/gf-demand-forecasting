@@ -5,7 +5,7 @@ from statsmodels.tsa.holtwinters import ExponentialSmoothing as HWES
 
 # needed for ets and holt's
 WINDOW_SIZE = 10
-SMOOTH_LVL = 1
+SMOOTH_LVL = 0.2
 # only needed for holt's
 SMOOTH_SLOPE = .25
 # only needed for holt's damped method
