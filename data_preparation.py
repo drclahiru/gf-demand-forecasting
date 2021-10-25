@@ -43,15 +43,21 @@ def main():
     alphs_writer = csv.writer(prepared_data)
     compare_months = pd.date_range(START_MONTH, END_MONTH,
                                    freq='MS').strftime("%m-%Y").tolist()
-    header = [MG_COL_NAME] + compare_months[:MONTH_LIMIT]
+    if MONTH_LIMIT is None:
+        header = [MG_COL_NAME] + compare_months
+    else:
+        header = [MG_COL_NAME] + compare_months[:MONTH_LIMIT]
     alphs_writer.writerow(header)
     for material_group in set(data[MG_COL_NAME]):
         total_units = [0] * len(compare_months)
         for company_code in set(data[data[MG_COL_NAME] == material_group][SC_COL_NAME]):
             filtered_data = data[(data[MG_COL_NAME] == material_group) & (data[SC_COL_NAME] == company_code)]
             unit_list = check_months(filtered_data, compare_months)
-            total_units = [x + y for x, y in zip(total_units, unit_list)]
-        alphs_writer.writerow([material_group] + total_units[:MONTH_LIMIT])
+            total_units = [max(x, 0) + max(y, 0) for x, y in zip(total_units, unit_list)]
+        if MONTH_LIMIT is None:
+            alphs_writer.writerow([material_group] + total_units)
+        else:
+            alphs_writer.writerow([material_group] + total_units[:MONTH_LIMIT])
 
     prepared_data.close()
 

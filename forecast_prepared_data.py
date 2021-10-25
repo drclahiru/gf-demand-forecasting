@@ -6,14 +6,16 @@ from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import LSTM
 import numpy as np
+import matplotlib.pyplot as plt
 
-SOURCE_PATH = 'prepared_data\\ALPHS_FC_Prepared_15_mth.csv'
+SOURCE_PATH = 'prepared_data\\ALPHS_10Y_Prepared.csv'
 MAT_GROUP = "ALPHS"
+MAT_COL_NAME = "MD Material Group"
 
-# holt or arima or lstm
-MODEL = "lstm"
+# holt or arima or lstm or all
+MODEL = "all"
 
-WINDOW_SIZE = 12
+WINDOW_SIZE = 50
 FORECAST_SIZE = 3
 SMOOTH_LVL = .7
 SMOOTH_SLOPE = 0.001
@@ -23,8 +25,20 @@ AUTO_REGRESSION = 1
 DIFFERENCING = 1
 MOVING_AVREAGE = 1
 
-NUM_OF_EPOCH = 20
+NUM_OF_EPOCH = 50
 NEURON_SIZE = 8
+
+
+def plot_data(train, test, predictions, unit_max):
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.plot(test.index, test.values, color="gray")
+    ax.plot(train.index, train.values, color='gray')
+    ax.plot(test.index, predictions[0], label="holts method", color='blue')
+    ax.plot(test.index, predictions[1], label="ARIMA model", color='orange')
+    ax.plot(test.index, predictions[2], label="LSTM model", color='green')
+    ax.vlines(train.index[-1], 0, unit_max, linestyle='--', color='r',
+              label='Start of forecast')
+    plt.legend()
 
 
 def fit_lstm(train, batch_size, nb_epoch, neurons):
@@ -35,7 +49,7 @@ def fit_lstm(train, batch_size, nb_epoch, neurons):
     model.add(Dense(1))
     model.compile(loss='mean_squared_error', optimizer='adam')
     for i in range(nb_epoch):
-        model.fit(X, y, epochs=1, batch_size=batch_size, verbose=0, shuffle=False)
+        model.fit(X, y, epochs=1, batch_size=batch_size, shuffle=False)
         model.reset_states()
     return model
 
@@ -92,7 +106,7 @@ def lstm_forecasting_3_mnt(unit_data):
     diff_unit_data = difference(raw_unit_data, 1)
     supervised_unit_data = timeseries_to_supervised(diff_unit_data, 1)
     sup_unit_data_val = supervised_unit_data.values
-    train, test = sup_unit_data_val[0:WINDOW_SIZE-1], sup_unit_data_val[WINDOW_SIZE-1:]
+    train, test = sup_unit_data_val[0:WINDOW_SIZE - 1], sup_unit_data_val[WINDOW_SIZE - 1:]
     scaler, train_scaled, test_scaled = scale(train, test)
     lstm_model = fit_lstm(train_scaled, 1, NUM_OF_EPOCH, NEURON_SIZE)
     train_reshaped = train_scaled[:, 0].reshape(len(train_scaled), 1, 1)
@@ -109,7 +123,7 @@ def lstm_forecasting_3_mnt(unit_data):
         y_hat = inverse_difference(raw_unit_data, y_hat, len(test_scaled) + 1 - i)
         # store forecast
         predictions.append(y_hat)
-    return predictions
+    return predictions[:FORECAST_SIZE]
 
 
 def arima_forecasting_3_mnt(unit_data):
@@ -143,23 +157,44 @@ def calculate_relative_error(predictions, test):
 def main():
     # initialization
     data = pd.read_csv(SOURCE_PATH, header=0)
-    filtered_data = data[data["Material Group"] == "ALPHS"].values[0][1:]
+    filtered_data = data[data[MAT_COL_NAME] == MAT_GROUP].values[0][1:]
     new_index = pd.to_datetime(data.columns[1:])
     unit_data = pd.Series(filtered_data, new_index)
     if MODEL == 'arima':
         predictions = arima_forecasting_3_mnt(unit_data)
     elif MODEL == 'holt':
         predictions = holts_dampening_forecasting_3_mnt(unit_data)
-    else:
+    elif MODEL == 'lstm':
         predictions = lstm_forecasting_3_mnt(unit_data)
-    print()
-    print(f"Predictions: \n{predictions}")
-    test = unit_data.iloc[WINDOW_SIZE:]
+    else:
+        lstm_predictions = lstm_forecasting_3_mnt(unit_data)
+        arima_predictions = arima_forecasting_3_mnt(unit_data)
+        holts_predictions = holts_dampening_forecasting_3_mnt(unit_data)
+    train = unit_data.iloc[:WINDOW_SIZE]
+    train = train.asfreq('MS')
+    test = unit_data.iloc[WINDOW_SIZE-1:WINDOW_SIZE + FORECAST_SIZE-1]
     test.index = pd.to_datetime(test.index)
     print(f"Real values: \n{test.values}")
-    rel_error = calculate_relative_error(predictions, test.values)
-    print()
-    print(f"Relative Error: {rel_error}")
+    if MODEL == 'all':
+        print()
+        print(f"Holts Predictions: \n{holts_predictions}")
+        print(f"ARIMA Predictions: \n{arima_predictions}")
+        print(f"LSTM Predictions: \n{lstm_predictions}")
+        lstm_rel_error = calculate_relative_error(lstm_predictions, test.values)
+        arima_rel_error = calculate_relative_error(arima_predictions, test.values)
+        holt_rel_error = calculate_relative_error(holts_predictions, test.values)
+        print()
+        print(f"holts Relative Error: {holt_rel_error}")
+        print(f"ARIMA Relative Error: {arima_rel_error}")
+        print(f"LSTM Relative Error: {lstm_rel_error}")
+        plot_data(train, test, [holts_predictions, arima_predictions, lstm_predictions], max(filtered_data))
+        plt.show()
+    else:
+        print()
+        print(f"Predictions: \n{predictions}")
+        rel_error = calculate_relative_error(predictions, test.values)
+        print()
+        print(f"Relative Error: {rel_error}")
 
 
 if __name__ == "__main__":
