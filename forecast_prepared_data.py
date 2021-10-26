@@ -7,15 +7,16 @@ from keras.layers import Dense
 from keras.layers import LSTM
 import numpy as np
 import matplotlib.pyplot as plt
+from statsmodels.tsa.stattools import adfuller
 
 SOURCE_PATH = 'prepared_data\\ALPHS_10Y_Prepared.csv'
 MAT_GROUP = "ALPHS"
 MAT_COL_NAME = "MD Material Group"
 
 # holt or arima or lstm or all
-MODEL = "all"
+MODEL = "lstm"
 
-WINDOW_SIZE = 50
+WINDOW_SIZE = 85
 FORECAST_SIZE = 3
 SMOOTH_LVL = .7
 SMOOTH_SLOPE = 0.001
@@ -28,6 +29,8 @@ MOVING_AVREAGE = 1
 NUM_OF_EPOCH = 50
 NEURON_SIZE = 8
 
+PLOT_SIZE = 15
+
 
 def plot_data(train, test, predictions, unit_max):
     fig, ax = plt.subplots(figsize=(12, 6))
@@ -36,6 +39,16 @@ def plot_data(train, test, predictions, unit_max):
     ax.plot(test.index, predictions[0], label="holts method", color='blue')
     ax.plot(test.index, predictions[1], label="ARIMA model", color='orange')
     ax.plot(test.index, predictions[2], label="LSTM model", color='green')
+    ax.vlines(train.index[-1], 0, unit_max, linestyle='--', color='r',
+              label='Start of forecast')
+    plt.legend()
+
+
+def plot_one_method(train, test, predictions, unit_max, method_label):
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.plot(test.index, test.values, color="gray")
+    ax.plot(train.index, train.values, color='gray')
+    ax.plot(test.index, predictions, label=method_label, color='blue')
     ax.vlines(train.index[-1], 0, unit_max, linestyle='--', color='r',
               label='Start of forecast')
     plt.legend()
@@ -84,11 +97,36 @@ def inverse_difference(history, y_hat, interval=1):
 
 # create a differenced series
 def difference(dataset, interval=1):
-    diff = list()
-    for i in range(interval, len(dataset)):
-        value = dataset[i] - dataset[i - interval]
-        diff.append(value)
-    return pd.Series(diff)
+    # Fickey Fuller Test
+    print("Summary Statistics - ADF Test For Stationarity\n")
+    if stationarity_test(X=dataset, return_p=True, print_res=False) > 0.05:
+        print("P Value is high. Differencing needed: " + str(
+            stationarity_test(X=dataset, return_p=True, print_res=False)))
+        diff = list()
+        for i in range(interval, len(dataset)):
+            value = dataset[i] - dataset[i - interval]
+            diff.append(value)
+        return pd.Series(diff)
+    else:
+        stationarity_test(X=dataset)
+        return dataset
+
+
+def stationarity_test(X, log_x="Y", return_p=False, print_res=True):
+    if log_x == "Y":
+        X = np.log(X[X > 0].astype(np.float32))
+    dickey_fuller = adfuller(X)
+    if print_res:
+        # If ADF statistic is < our 1% critical value (sig level) we can conclude it's not a fluke (ie low P val /
+        # reject H(0))
+        print('ADF Stat is: {}.'.format(dickey_fuller[0]))
+        # A lower p val means we can reject the H(0) that our data is NOT stationary
+        print('P Val is: {}.'.format(dickey_fuller[1]))
+        print('Critical Values (Significance Levels): ')
+        for key, val in dickey_fuller[4].items():
+            print(key, ":", round(val, 3))
+    if return_p:
+        return dickey_fuller[1]
 
 
 # frame a sequence as a supervised learning problem
@@ -123,7 +161,7 @@ def lstm_forecasting_3_mnt(unit_data):
         y_hat = inverse_difference(raw_unit_data, y_hat, len(test_scaled) + 1 - i)
         # store forecast
         predictions.append(y_hat)
-    return predictions[:FORECAST_SIZE]
+    return predictions[:FORECAST_SIZE], "LSTM model"
 
 
 def arima_forecasting_3_mnt(unit_data):
@@ -134,7 +172,7 @@ def arima_forecasting_3_mnt(unit_data):
     model_fit = model.fit()
     predictions = model_fit.forecast(3)
     print(model_fit.summary())
-    return predictions
+    return predictions, "ARIMA model"
 
 
 def holts_dampening_forecasting_3_mnt(unit_data):
@@ -145,7 +183,7 @@ def holts_dampening_forecasting_3_mnt(unit_data):
     model_fit = model.fit(smoothing_level=SMOOTH_LVL, smoothing_trend=SMOOTH_SLOPE, damping_trend=DAMPED_TREND)
     predictions = model_fit.forecast(FORECAST_SIZE)
     print(model_fit.summary())
-    return predictions
+    return predictions, "Holts method"
 
 
 def calculate_relative_error(predictions, test):
@@ -161,18 +199,18 @@ def main():
     new_index = pd.to_datetime(data.columns[1:])
     unit_data = pd.Series(filtered_data, new_index)
     if MODEL == 'arima':
-        predictions = arima_forecasting_3_mnt(unit_data)
+        predictions, label = arima_forecasting_3_mnt(unit_data)
     elif MODEL == 'holt':
-        predictions = holts_dampening_forecasting_3_mnt(unit_data)
+        predictions, label = holts_dampening_forecasting_3_mnt(unit_data)
     elif MODEL == 'lstm':
-        predictions = lstm_forecasting_3_mnt(unit_data)
+        predictions, label = lstm_forecasting_3_mnt(unit_data)
     else:
         lstm_predictions = lstm_forecasting_3_mnt(unit_data)
         arima_predictions = arima_forecasting_3_mnt(unit_data)
         holts_predictions = holts_dampening_forecasting_3_mnt(unit_data)
-    train = unit_data.iloc[:WINDOW_SIZE]
+    train = unit_data.iloc[WINDOW_SIZE - PLOT_SIZE:WINDOW_SIZE]
     train = train.asfreq('MS')
-    test = unit_data.iloc[WINDOW_SIZE-1:WINDOW_SIZE + FORECAST_SIZE-1]
+    test = unit_data.iloc[WINDOW_SIZE - 1:WINDOW_SIZE + FORECAST_SIZE - 1]
     test.index = pd.to_datetime(test.index)
     print(f"Real values: \n{test.values}")
     if MODEL == 'all':
@@ -195,6 +233,8 @@ def main():
         rel_error = calculate_relative_error(predictions, test.values)
         print()
         print(f"Relative Error: {rel_error}")
+        plot_one_method(train, test, predictions, max(filtered_data), label)
+        plt.show()
 
 
 if __name__ == "__main__":
