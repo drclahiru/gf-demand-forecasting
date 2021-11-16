@@ -40,8 +40,8 @@ class Forecast:
         """
         forecast_errors = [abs(self.test[i] - self.predictions[i]) / max(abs(self.test[i]), abs(self.predictions[i]))
                            for i in range(len(self.test))]
-        bias = sum(forecast_errors) * 1.0 / len(self.test)
-        self.rel_error = bias
+        rel_error = sum(forecast_errors) * 1.0 / len(self.test)
+        self.rel_error = rel_error
 
     def divide_data(self, unit_data):
         """

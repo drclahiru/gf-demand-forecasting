@@ -27,7 +27,7 @@ SOURCE_PATH = '..\\prepared_data\\SUA03_10Y_Prepared.csv'
 #   "SUA03 Global" - for forecasting on sum of material groups
 #   "SUA03" - for forecasting on all material groups and then summing
 #   material group name (e.g. "ALPHS") - for forecasting on some material group
-MAT_GROUP = "ALPHS"
+MAT_GROUP = "SUA03"
 
 MAT_COL_NAME = "MD Material Group"
 # Choose method or model to use for forecasting
@@ -36,7 +36,7 @@ MAT_COL_NAME = "MD Material Group"
 #   "arima" - for ARIMA Model (auto regressive model)
 #   "lstm" - for LSTM Model (Recurrent Neural Network)
 #   "all" - for all of the methods and models
-MODEL = "holt"
+MODEL = "lstm"
 
 # parameters for forecasting
 WINDOW_SIZE = 90
@@ -55,6 +55,7 @@ MOVING_AVREAGE = 1
 # parameters for the LSTM model
 NUM_OF_EPOCH = 50
 NEURON_SIZE = 8
+LOOK_BACK = 6
 
 # how much data-points to show on plot before forecasting
 PLOT_SIZE = 15
@@ -173,7 +174,7 @@ def main():
     arima_model = Arima(WINDOW_SIZE, FORECAST_SIZE, AUTO_REGRESSION, DIFFERENCING, MOVING_AVREAGE, do_print=DO_PRINT)
     holts_model = Holts(WINDOW_SIZE, FORECAST_SIZE, SMOOTH_LVL, SMOOTH_SLOPE, DAMPED_TREND, is_damped=True,
                         do_print=DO_PRINT)
-    lstm_model = Lstm(WINDOW_SIZE, FORECAST_SIZE, NUM_OF_EPOCH, NEURON_SIZE, do_print=DO_PRINT)
+    lstm_model = Lstm(WINDOW_SIZE, FORECAST_SIZE, NUM_OF_EPOCH, NEURON_SIZE, LOOK_BACK, do_print=DO_PRINT)
     # forecast on the summed up product group data
     if MAT_GROUP == "SUA03 Global":
         unit_data = combine_material_groups(data)
