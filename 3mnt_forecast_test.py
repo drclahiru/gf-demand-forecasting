@@ -1,5 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
 from statsmodels.tsa.api import SimpleExpSmoothing, Holt
 
 # needed for ets and holt's
@@ -22,7 +23,14 @@ def calculate_relative_error(predictions, test):
     forecast_errors = [abs(test[i] - predictions[i]) / max(test[i], predictions[i]) for i in range(len(test))]
     bias = sum(forecast_errors) * 1.0 / len(test)
     return bias
+def MAPE(predictions, test):
+    mape = np.mean(np.abs((test - predictions) / test)) * 100
+    return mape
 
+
+def MAE(predictions, test):
+
+def  RMSS(predictions,test):
 
 def holts_dampening_forecasting_3_mnt(unit_data):
     model_fit = None
