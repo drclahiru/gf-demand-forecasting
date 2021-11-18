@@ -28,10 +28,8 @@ def calculate_relative_error(predictions, test):
 def MAPE(predictions, test):
     return  np.mean(np.abs((test - predictions) / test)) * 100
 
-
-
 def MAE(predictions, test):
-
+    return 0
 def  RMSE(predictions,test):
     return math.sqrt(np.square(np.subtract(test, predictions)).mean())
 
