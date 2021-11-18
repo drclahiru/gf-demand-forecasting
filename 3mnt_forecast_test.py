@@ -1,3 +1,5 @@
+import math
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,13 +26,14 @@ def calculate_relative_error(predictions, test):
     bias = sum(forecast_errors) * 1.0 / len(test)
     return bias
 def MAPE(predictions, test):
-    mape = np.mean(np.abs((test - predictions) / test)) * 100
-    return mape
+    return  np.mean(np.abs((test - predictions) / test)) * 100
+
 
 
 def MAE(predictions, test):
 
-def  RMSS(predictions,test):
+def  RMSE(predictions,test):
+    return math.sqrt(np.square(np.subtract(test, predictions)).mean())
 
 def holts_dampening_forecasting_3_mnt(unit_data):
     model_fit = None
