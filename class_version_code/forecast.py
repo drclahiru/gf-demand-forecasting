@@ -1,3 +1,6 @@
+import math
+import numpy as np
+
 import pandas as pd
 from datetime import datetime
 
@@ -42,6 +45,25 @@ class Forecast:
                            for i in range(len(self.test))]
         rel_error = sum(forecast_errors) * 1.0 / len(self.test)
         self.rel_error = rel_error
+
+    def calculate_MAPE(predictions, test):
+        """
+               Calculates the mean percentage error between the forecasted predictions and
+               the time series data-points used for testing
+
+         """
+        return np.mean(np.abs((test - predictions) / test)) * 100
+
+    def calculate_MAE(predictions, test):
+        return 0
+
+    def calculate_RMSE(predictions, test):
+        """
+               Calculates the root mean square error between the forecasted predictions and
+               the time series data-points used for testing
+
+         """
+        return math.sqrt(np.square(np.subtract(test, predictions)).mean())
 
     def divide_data(self, unit_data):
         """
