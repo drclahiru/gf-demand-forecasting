@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import pandas as pd
 
 
 class PlotData:
@@ -80,3 +81,30 @@ class PlotData:
                   label='Start of forecast')
         plt.title(title)
         plt.legend()
+
+
+def main():
+    data = pd.read_csv('..\\prepared_data\\SUA03_10Y_Prepared.csv', header=0)
+    filtered_data = data[data["MD Material Group"] == "ALPHS"].values[0][1:]
+    new_index = pd.to_datetime(data.columns[1:])
+    unit_data = pd.Series(filtered_data, new_index)
+
+    plt.figure(figsize=(16, 10), dpi=80)
+    plt.plot(unit_data.index[20:], unit_data.values[20:], color="tab:blue")
+    #plt.ylim(50, 750)
+    xtick_location = unit_data.index.tolist()[::12]
+    #xtick_labels = [x[-4:] for x in unit_data.index.tolist()[::12]]
+    plt.xticks(rotation=0, fontsize=12, horizontalalignment='center', alpha=.7)
+    plt.yticks(fontsize=12, alpha=.7)
+    plt.title("ALPHS number of units (2012-2021)", fontsize=22)
+    plt.grid(axis='both', alpha=.3)
+
+    plt.gca().spines["top"].set_alpha(0.0)
+    plt.gca().spines["bottom"].set_alpha(0.3)
+    plt.gca().spines["right"].set_alpha(0.0)
+    plt.gca().spines["left"].set_alpha(0.3)
+    plt.show()
+
+
+if __name__ == "__main__":
+    main()

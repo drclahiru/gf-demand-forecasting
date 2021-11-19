@@ -1,24 +1,26 @@
 import pandas as pd
 import csv
 import datetime as dt
+import math
 
-START_MONTH = '2018-10'
+START_MONTH = '2011-01'
 END_MONTH = '2020-12'
 
-SC_COL_NAME = 'Company code'
-MG_COL_NAME = 'Material Group'
+SC_COL_NAME = 'Company Code'
+MG_COL_NAME = 'MD Material Group'
 MONTH_COL_NAME = 'Cal. year / month'
-UNIT_COL_NAME = 'ZPC'
+UNIT_COL_NAME = 'PC'
 
-SOURCE_PATH = 'data\\ALPHS_FC.xlsx'
-DEST_PATH = 'prepared_data\\ALPHS_FC_Prepared_15_mth.csv'
-SHEET_NAME = 'FC 3 mth horizon'
+SOURCE_PATH = 'data\\DBS_10_Monthly.xlsx'
+DEST_PATH = 'prepared_data\\DBS_10Y_Prepared.csv'
+SHEET_NAME = 'SalesHistory'
 
-MONTH_LIMIT = 15
+MONTH_LIMIT = None
 
 
 def check_months(filtered_data, compare_months):
     filtered_units = filtered_data[UNIT_COL_NAME].values
+    filtered_units = [0 if math.isnan(x) else x for x in filtered_units]
     unit_list = [0] * len(compare_months)
     my_months = ["%.4f" % f for f in filtered_data[MONTH_COL_NAME].values]
     my_months = [str(m).replace('.', '-') for m in my_months]
