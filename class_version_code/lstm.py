@@ -4,9 +4,21 @@ from statsmodels.tsa.stattools import adfuller
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import LSTM
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.optimizers.schedules import ExponentialDecay
 import pandas as pd
 import numpy as np
 from keras.preprocessing.sequence import TimeseriesGenerator
+
+
+def build_exp_decay(epochs):
+    decay = 0.5 ** (2 / epochs)
+
+    def exp_decay(epoch):
+        lr = 0.001 * decay ** epoch
+        return lr
+
+    return exp_decay
 
 
 class Lstm(Forecast):
@@ -69,7 +81,10 @@ class Lstm(Forecast):
                  input_shape=(self.look_back, 1))
         )
         model.add(Dense(1))
-        model.compile(optimizer='adam', loss='mse')
+        # add learning rate decay to stabilize the training process
+        l_rate = ExponentialDecay(0.001, decay_steps=len(train_generator), decay_rate=0.5 ** (2.0 / self.num_of_epoch))
+        adam = Adam(learning_rate=l_rate)
+        model.compile(optimizer=adam, loss='mse')
         # fitting the model with the generator and deciding whether we want to print the progress
         model.fit_generator(train_generator, epochs=self.num_of_epoch, verbose=(1 if self.do_print else 0))
         # forecast

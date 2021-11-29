@@ -20,15 +20,15 @@ warnings.simplefilter(action='ignore', category=UserWarning)
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 # path from which we extract product group data
-SOURCE_PATH = '..\\prepared_data\\SUA03_10Y_Prepared.csv'
+SOURCE_PATH = '..\\prepared_data\\DBS_SOLOL_10Y_Prepared.csv'
 
-# Choose whether you want to frecast for the whole product group or just for material group
+# Choose whether you want to forecast for the whole product group or just for material group
 # Choices:
-#   "SUA03 Global" - for forecasting on sum of material groups
-#   "SUA03" - for forecasting on all material groups and then summing
+#   "PG Global" - for forecasting on sum of material groups
+#   "PG" - for forecasting on all material groups and then summing
 #   material group name (e.g. "ALPHS") - for forecasting on some material group
-MAT_GROUP = "SUA03"
-
+MAT_GROUP = "PG Global"
+# Name of the column in which the material group names are
 MAT_COL_NAME = "MD Material Group"
 # Choose method or model to use for forecasting
 # Choices:
@@ -36,11 +36,11 @@ MAT_COL_NAME = "MD Material Group"
 #   "arima" - for ARIMA Model (auto regressive model)
 #   "lstm" - for LSTM Model (Recurrent Neural Network)
 #   "all" - for all of the methods and models
-MODEL = "lstm"
+MODEL = "all"
 
 # parameters for forecasting
-WINDOW_SIZE = 90
-FORECAST_SIZE = 10
+WINDOW_SIZE = 91
+FORECAST_SIZE = 18
 
 # parameters for Holts method
 SMOOTH_LVL = .2
@@ -53,7 +53,7 @@ DIFFERENCING = 1
 MOVING_AVREAGE = 1
 
 # parameters for the LSTM model
-NUM_OF_EPOCH = 50
+NUM_OF_EPOCH = 100
 NEURON_SIZE = 8
 LOOK_BACK = 6
 
@@ -176,12 +176,12 @@ def main():
                         do_print=DO_PRINT)
     lstm_model = Lstm(WINDOW_SIZE, FORECAST_SIZE, NUM_OF_EPOCH, NEURON_SIZE, LOOK_BACK, do_print=DO_PRINT)
     # forecast on the summed up product group data
-    if MAT_GROUP == "SUA03 Global":
+    if MAT_GROUP == "PG Global":
         unit_data = combine_material_groups(data)
         predictions = forecast_data(holts_model, arima_model, lstm_model, unit_data)
         holts_model.divide_data(unit_data)
     # forecast on each material group and then add them
-    elif MAT_GROUP == 'SUA03':
+    elif MAT_GROUP == 'PG':
         total_predictions = [[0.0] * FORECAST_SIZE, [0.0] * FORECAST_SIZE, [0.0] * FORECAST_SIZE]
         for material_group in tqdm(data[MAT_COL_NAME]):
             filtered_data = data[data[MAT_COL_NAME] == material_group].values[0][1:]
