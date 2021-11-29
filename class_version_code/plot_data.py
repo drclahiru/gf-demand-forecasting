@@ -84,8 +84,8 @@ class PlotData:
 
 
 def main():
-    data = pd.read_csv('..\\prepared_data\\SUA03_10Y_Prepared.csv', header=0)
-    filtered_data = data[data["MD Material Group"] == "ALPHS"].values[0][1:]
+    data = pd.read_csv('..\\prepared_data\\DBS_SYSCO_10Y_Prepared.csv', header=0)
+    filtered_data = data[data["MD Material Group"] == "CHBOC"].values[0][1:]
     new_index = pd.to_datetime(data.columns[1:])
     unit_data = pd.Series(filtered_data, new_index)
 
@@ -96,7 +96,7 @@ def main():
     #xtick_labels = [x[-4:] for x in unit_data.index.tolist()[::12]]
     plt.xticks(rotation=0, fontsize=12, horizontalalignment='center', alpha=.7)
     plt.yticks(fontsize=12, alpha=.7)
-    plt.title("ALPHS number of units (2012-2021)", fontsize=22)
+    plt.title("CHBOC number of units (2012-2021)", fontsize=22)
     plt.grid(axis='both', alpha=.3)
 
     plt.gca().spines["top"].set_alpha(0.0)

@@ -11,16 +11,6 @@ import numpy as np
 from keras.preprocessing.sequence import TimeseriesGenerator
 
 
-def build_exp_decay(epochs):
-    decay = 0.5 ** (2 / epochs)
-
-    def exp_decay(epoch):
-        lr = 0.001 * decay ** epoch
-        return lr
-
-    return exp_decay
-
-
 class Lstm(Forecast):
     """
     A class for the LSTM forecasting model. It is a recurrent neural network.
@@ -33,18 +23,18 @@ class Lstm(Forecast):
         the number of data-points that will be predicted after the last training data-point
     num_of_epoch : int
         the number of epochs used to train the neural network
-    num_of_neurons : int
-        the number of neurons in the neural network architecture
+    output_size : int
+        dimensionality of the output space for the LSTM layers
     look_back : int
         the number of months that will go as input to the lstm
     do_print : bool
         a flag that decides if we will print the method summary
     """
 
-    def __init__(self, window_size, forecast_size, num_of_epoch, num_of_neurons, look_back, do_print=False):
+    def __init__(self, window_size, forecast_size, num_of_epoch, output_size, look_back, do_print=False):
         Forecast.__init__(self, window_size, forecast_size, "LSTM Model")
         self.num_of_epoch = num_of_epoch
-        self.num_of_neurons = num_of_neurons
+        self.output_size = output_size
         self.look_back = look_back
         self.do_print = do_print
         self.scaler = None
@@ -63,7 +53,7 @@ class Lstm(Forecast):
         self.train = self.train.asfreq('MS')
         self.test = unit_data.iloc[self.window_size - 1:self.window_size + self.forecast_size - 1]
         self.test.index = pd.to_datetime(self.test.index)
-        # scale the training data into a range from -1 to 1
+        # scale the training data into a range from 0 to 1
         train_data = self.train.values
         train_data = train_data.reshape((-1, 1))
         scaler = MinMaxScaler()
@@ -76,7 +66,7 @@ class Lstm(Forecast):
         # defining the model
         model = Sequential()
         model.add(
-            LSTM(self.num_of_neurons,
+            LSTM(self.output_size,
                  activation='relu',
                  input_shape=(self.look_back, 1))
         )
