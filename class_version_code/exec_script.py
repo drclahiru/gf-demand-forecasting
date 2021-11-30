@@ -38,7 +38,7 @@ MAT_COL_NAME = "MD Material Group"
 #   "arima" - for ARIMA Model (auto regressive model)
 #   "lstm" - for LSTM Model (Recurrent Neural Network)
 #   "all" - for all of the methods and models
-MODEL = "all"
+MODEL = "lstm"
 
 # parameters for forecasting
 TRAINING_SIZE = 91
@@ -66,12 +66,11 @@ PLOT_SIZE = 15
 DO_PRINT = False
 
 
-def grundfos_forecasting(prepared_data, forecasting_class):
+def grundfos_forecasting(prepared_data, product_group_exp_smoothing_model):
     simple_exp_model = Holts(TRAINING_SIZE, FORECAST_SIZE, 0.2, 0, 0, is_damped=False,
                         do_print=DO_PRINT)
-    product_group_exp_smoothing_model = forecasting_class
+    # execute simple exponential smoothing on all material groups
     total_mg_predictions = []
-
     for material_group in prepared_data[MAT_COL_NAME]:
         filtered_data = prepared_data[prepared_data[MAT_COL_NAME] == material_group].values[0][1:]
         new_index = pd.to_datetime(prepared_data.columns[1:])
@@ -79,40 +78,40 @@ def grundfos_forecasting(prepared_data, forecasting_class):
         simple_exp_model.forecast(unit_data)
         mg_predictions = simple_exp_model.predictions
         total_mg_predictions.append(mg_predictions)
-
+    # sum up the material group predictions
     pg_predictions = []
     for i in range(len(total_mg_predictions[0])):
         temp_sum = 0.0
         for j in range(len(prepared_data[MAT_COL_NAME])):
             temp_sum += total_mg_predictions[j][i]
         pg_predictions.append(temp_sum)
-
+    # create the ratios for every material group withing the product group
     total_mg_ratio_list = []
     for i in range(len(total_mg_predictions)):
         mg_ratio_list = []
         for j in range(len(total_mg_predictions[i])):
             mg_ratio_list.append(total_mg_predictions[i][j]/pg_predictions[j])
         total_mg_ratio_list.append(mg_ratio_list)
-
+    # forecast for the product group
     product_group_data = combine_material_groups(prepared_data)
     product_group_exp_smoothing_model.forecast(product_group_data)
     product_group_predictions = product_group_exp_smoothing_model.predictions
-
+    # use the ratios and the product group redictions to get better material group predictions
     total_mg_final_predictions = []
     for i in range(len(total_mg_ratio_list)):
         mg_final_pred = []
         for j in range(len(total_mg_ratio_list[i])):
             mg_final_pred.append(total_mg_ratio_list[i][j] * product_group_predictions[j])
         total_mg_final_predictions.append(mg_final_pred)
-
+    # calculate the relative error for every material group
     total_relative_errors = []
     for mg in total_mg_final_predictions:
         product_group_exp_smoothing_model.predictions = mg
         product_group_exp_smoothing_model.calculate_relative_error()
         total_relative_errors.append(product_group_exp_smoothing_model.rel_error)
-
+    # mean all of the relative errors to get the relative error for the product group
     final_relative_error = stat.mean(total_relative_errors)
-
+    product_group_exp_smoothing_model.rel_error = final_relative_error
     total_pg_pred = [0.0] * len(total_mg_final_predictions[0])
     for mg in total_mg_final_predictions:
         total_pg_pred = [x + y for x, y in zip(total_pg_pred, mg)]
@@ -249,10 +248,12 @@ def main():
         predictions = total_predictions
         unit_data = combine_material_groups(data)
         total_print(holts_model, arima_model, lstm_model, predictions, unit_data)
+    # forecast with the Grundfos approach
     elif MAT_GROUP == 'Grundfos':
         predictions = [grundfos_forecasting(data, arima_model), grundfos_forecasting(data, holts_model),
                        grundfos_forecasting(data, lstm_model)]
         unit_data = combine_material_groups(data)
+        total_print(holts_model, arima_model, lstm_model, predictions, unit_data)
     # forecast for a single material group
     else:
         filtered_data = data[data[MAT_COL_NAME] == MAT_GROUP].values[0][1:]
