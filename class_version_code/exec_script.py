@@ -21,7 +21,7 @@ warnings.simplefilter(action='ignore', category=UserWarning)
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 # path from which we extract product group data
-SOURCE_PATH = '..\\prepared_data\\DBS_SUPM3_10Y_Prepared.csv'
+SOURCE_PATH = '..\\prepared_data\\DBS_CIRSC_10Y_Prepared.csv'
 
 # Choose whether you want to forecast for the whole product group or just for material group
 # Choices:
@@ -38,11 +38,11 @@ MAT_COL_NAME = "MD Material Group"
 #   "arima" - for ARIMA Model (auto regressive model)
 #   "lstm" - for LSTM Model (Recurrent Neural Network)
 #   "all" - for all of the methods and models
-MODEL = "lstm"
+MODEL = "arima"
 
 # parameters for forecasting
-TRAINING_SIZE = 91
-FORECAST_SIZE = 8
+TRAINING_SIZE = 102
+FORECAST_SIZE = 18
 
 # parameters for Holts method
 SMOOTH_LVL = .6
@@ -57,7 +57,7 @@ MOVING_AVREAGE = 1
 # parameters for the LSTM model
 NUM_OF_EPOCH = 100
 OUTPUT_SIZE = 8
-LOOK_BACK = 6
+LOOK_BACK = 10
 
 # how much data-points to show on plot before forecasting
 PLOT_SIZE = 15
@@ -68,7 +68,7 @@ DO_PRINT = False
 
 def grundfos_forecasting(prepared_data, product_group_exp_smoothing_model):
     simple_exp_model = Holts(TRAINING_SIZE, FORECAST_SIZE, 0.2, 0, 0, is_damped=False,
-                        do_print=DO_PRINT)
+                             do_print=DO_PRINT)
     # execute simple exponential smoothing on all material groups
     total_mg_predictions = []
     for material_group in prepared_data[MAT_COL_NAME]:
@@ -90,7 +90,7 @@ def grundfos_forecasting(prepared_data, product_group_exp_smoothing_model):
     for i in range(len(total_mg_predictions)):
         mg_ratio_list = []
         for j in range(len(total_mg_predictions[i])):
-            mg_ratio_list.append(total_mg_predictions[i][j]/pg_predictions[j])
+            mg_ratio_list.append(total_mg_predictions[i][j] / pg_predictions[j])
         total_mg_ratio_list.append(mg_ratio_list)
     # forecast for the product group
     product_group_data = combine_material_groups(prepared_data)
@@ -103,20 +103,18 @@ def grundfos_forecasting(prepared_data, product_group_exp_smoothing_model):
         for j in range(len(total_mg_ratio_list[i])):
             mg_final_pred.append(total_mg_ratio_list[i][j] * product_group_predictions[j])
         total_mg_final_predictions.append(mg_final_pred)
-    # calculate the relative error for every material group
-    total_relative_errors = []
-    for mg in total_mg_final_predictions:
-        product_group_exp_smoothing_model.predictions = mg
-        product_group_exp_smoothing_model.calculate_relative_error()
-        total_relative_errors.append(product_group_exp_smoothing_model.rel_error)
-    # mean all of the relative errors to get the relative error for the product group
-    final_relative_error = stat.mean(total_relative_errors)
-    product_group_exp_smoothing_model.rel_error = final_relative_error
-    total_pg_pred = [0.0] * len(total_mg_final_predictions[0])
-    for mg in total_mg_final_predictions:
-        total_pg_pred = [x + y for x, y in zip(total_pg_pred, mg)]
-    product_group_exp_smoothing_model.predictions = total_pg_pred
-    return total_pg_pred
+    # sum up all of the final material group predictions to get the product group predictions
+    total_pg_final_prediction = []
+    for i in range(len(total_mg_final_predictions[0])):
+        temp_sum = 0.0
+        for j in range(len(prepared_data[MAT_COL_NAME])):
+            temp_sum += total_mg_final_predictions[j][i]
+        total_pg_final_prediction.append(temp_sum)
+    # calcualte the relative error
+    product_group_exp_smoothing_model.predictions = total_pg_final_prediction
+    product_group_exp_smoothing_model.calculate_relative_error()
+
+    return total_pg_final_prediction
 
 
 def total_print(holts_model, arima_model, lstm_model, predictions, unit_data):
@@ -266,7 +264,8 @@ def main():
     plot_data = PlotData(PLOT_SIZE, holts_model.train, holts_model.test, predictions)
     # plot data with all of the forecasting method/model predictions
     if MODEL == 'all':
-        plot_data.plot_data(f"{MAT_GROUP} Forecast for {FORECAST_SIZE} Months")
+        plot_data.plot_data(f"{MAT_GROUP} Forecast for {FORECAST_SIZE} Months (KP)",
+                            [holts_model.rel_error, arima_model.rel_error, lstm_model.rel_error])
     # plot data for one forecasting method/model prediction
     else:
         plot_data.plot_one_method(MODEL, f"{MAT_GROUP} Forecast for {FORECAST_SIZE} Months")
