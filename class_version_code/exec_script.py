@@ -21,7 +21,7 @@ warnings.simplefilter(action='ignore', category=UserWarning)
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 # path from which we extract product group data
-SOURCE_PATH = '..\\prepared_data\\DBS_CIRSC_10Y_Prepared.csv'
+SOURCE_PATH = '..\\prepared_data\\DBS_SUPM2_10Y_Prepared.csv'
 
 # Choose whether you want to forecast for the whole product group or just for material group
 # Choices:
@@ -42,17 +42,17 @@ MODEL = "arima"
 
 # parameters for forecasting
 TRAINING_SIZE = 102
-FORECAST_SIZE = 18
+FORECAST_SIZE = 3
 
 # parameters for Holts method
-SMOOTH_LVL = .6
+SMOOTH_LVL = .3
 SMOOTH_SLOPE = .3
-DAMPED_TREND = .8
+DAMPED_TREND = .9
 
 # parameters for the ARIMA model
 AUTO_REGRESSION = 1
 DIFFERENCING = 1
-MOVING_AVREAGE = 1
+MOVING_AVREAGE = 3
 
 # parameters for the LSTM model
 NUM_OF_EPOCH = 100
@@ -235,6 +235,7 @@ def main():
         holts_model.divide_data(unit_data)
     # forecast on each material group and then add them
     elif MAT_GROUP == 'PG':
+        print('PG')
         total_predictions = [[0.0] * FORECAST_SIZE, [0.0] * FORECAST_SIZE, [0.0] * FORECAST_SIZE]
         for material_group in tqdm(data[MAT_COL_NAME]):
             filtered_data = data[data[MAT_COL_NAME] == material_group].values[0][1:]
@@ -248,8 +249,8 @@ def main():
         total_print(holts_model, arima_model, lstm_model, predictions, unit_data)
     # forecast with the Grundfos approach
     elif MAT_GROUP == 'Grundfos':
-        predictions = [grundfos_forecasting(data, arima_model), grundfos_forecasting(data, holts_model),
-                       grundfos_forecasting(data, lstm_model)]
+        print("grundfos")
+        predictions = [grundfos_forecasting(data, holts_model), grundfos_forecasting(data, arima_model), grundfos_forecasting(data, lstm_model)]
         unit_data = combine_material_groups(data)
         total_print(holts_model, arima_model, lstm_model, predictions, unit_data)
     # forecast for a single material group
