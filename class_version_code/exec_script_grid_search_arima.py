@@ -1,6 +1,8 @@
+import math
 import warnings
 import pandas as pd
 import os
+import numpy as np
 import statistics as stat
 
 from statsmodels.tools.sm_exceptions import ConvergenceWarning
@@ -21,7 +23,7 @@ warnings.simplefilter(action='ignore', category=UserWarning)
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 # path from which we extract product group data
-SOURCE_PATH = '..\\prepared_data\\DBS_SUPM2_10Y_Prepared.csv'
+SOURCE_PATH = '..\\prepared_data\\DBS_2SMUE_10Y_Prepared.csv'
 
 # Choose whether you want to forecast for the whole product group or just for material group
 # Choices:
@@ -42,12 +44,12 @@ MODEL = "arima"
 
 # parameters for forecasting
 TRAINING_SIZE = 102
-FORECAST_SIZE = 3
+FORECAST_SIZE = 18
 
 # parameters for Holts method
-SMOOTH_LVL = .3
-SMOOTH_SLOPE = .3
-DAMPED_TREND = .9
+SMOOTH_LVL = .6
+SMOOTH_SLOPE = .5
+DAMPED_TREND = .2
 
 # parameters for the ARIMA model
 AUTO_REGRESSION = 1
@@ -66,8 +68,8 @@ PLOT_SIZE = 15
 DO_PRINT = False
 
 
-def grundfos_forecasting(prepared_data, product_group_exp_smoothing_model):
-    simple_exp_model = Holts(TRAINING_SIZE, FORECAST_SIZE, 0.2, 0, 0, is_damped=False,
+def grundfos_forecasting(prepared_data, product_group_exp_smoothing_model, forecast_size):
+    simple_exp_model = Holts(TRAINING_SIZE, forecast_size, 0.2, 0, 0, is_damped=False,
                              do_print=DO_PRINT)
     # execute simple exponential smoothing on all material groups
     total_mg_predictions = []
@@ -90,7 +92,10 @@ def grundfos_forecasting(prepared_data, product_group_exp_smoothing_model):
     for i in range(len(total_mg_predictions)):
         mg_ratio_list = []
         for j in range(len(total_mg_predictions[i])):
-            mg_ratio_list.append(total_mg_predictions[i][j] / pg_predictions[j])
+            if pg_predictions[j] == 0.0:
+                mg_ratio_list.append(0.0)
+            else:
+                mg_ratio_list.append(total_mg_predictions[i][j] / pg_predictions[j])
         total_mg_ratio_list.append(mg_ratio_list)
     # forecast for the product group
     product_group_data = combine_material_groups(prepared_data)
@@ -143,7 +148,7 @@ def total_print(holts_model, arima_model, lstm_model, predictions, unit_data):
         arima_model.divide_data(unit_data)
         arima_model.predictions = predictions[1]
         arima_model.calculate_relative_error()
-        arima_model.print_result()
+        # arima_model.print_result()
     if MODEL == 'lstm' or MODEL == 'all':
         lstm_model.divide_data(unit_data)
         lstm_model.predictions = predictions[2]
@@ -220,11 +225,11 @@ def forecast_data(holts_model, arima_model, lstm_model, unit_data, calc_error=Tr
     return predictions
 
 
-def main():
+def run(auto_regression, differencing, moving_average, forecast_size):
     # read the prepared data from the cvs file
     data = pd.read_csv(SOURCE_PATH, header=0)
     # initialize the forecasting methods/models
-    arima_model = Arima(TRAINING_SIZE, FORECAST_SIZE, AUTO_REGRESSION, DIFFERENCING, MOVING_AVREAGE, do_print=DO_PRINT)
+    arima_model = Arima(TRAINING_SIZE, forecast_size, auto_regression, differencing, moving_average, do_print=DO_PRINT)
     holts_model = Holts(TRAINING_SIZE, FORECAST_SIZE, SMOOTH_LVL, SMOOTH_SLOPE, DAMPED_TREND, is_damped=True,
                         do_print=DO_PRINT)
     lstm_model = Lstm(TRAINING_SIZE, FORECAST_SIZE, NUM_OF_EPOCH, OUTPUT_SIZE, LOOK_BACK, do_print=DO_PRINT)
@@ -249,8 +254,9 @@ def main():
         total_print(holts_model, arima_model, lstm_model, predictions, unit_data)
     # forecast with the Grundfos approach
     elif MAT_GROUP == 'Grundfos':
-        print("grundfos")
-        predictions = [grundfos_forecasting(data, holts_model), grundfos_forecasting(data, arima_model), grundfos_forecasting(data, lstm_model)]
+        predictions = [0.0,
+                       grundfos_forecasting(data, arima_model, forecast_size),
+                       0.0]
         unit_data = combine_material_groups(data)
         total_print(holts_model, arima_model, lstm_model, predictions, unit_data)
     # forecast for a single material group
@@ -262,15 +268,41 @@ def main():
     # divide the data to be used for plotting
     holts_model.divide_data(unit_data)
     # initialize the the data plot class
-    plot_data = PlotData(PLOT_SIZE, holts_model.train, holts_model.test, predictions)
-    # plot data with all of the forecasting method/model predictions
-    if MODEL == 'all':
-        plot_data.plot_data(f"{MAT_GROUP} Forecast for {FORECAST_SIZE} Months (KP)",
-                            [holts_model.rel_error, arima_model.rel_error, lstm_model.rel_error])
-    # plot data for one forecasting method/model prediction
-    else:
-        plot_data.plot_one_method(MODEL, f"{MAT_GROUP} Forecast for {FORECAST_SIZE} Months")
-    plt.show()
+    # plot_data = PlotData(PLOT_SIZE, holts_model.train, holts_model.test, predictions)
+    # # plot data with all of the forecasting method/model predictions
+    # if MODEL == 'all':
+    #     plot_data.plot_data(f"{MAT_GROUP} Forecast for {FORECAST_SIZE} Months (KP)",
+    #                         [holts_model.rel_error, arima_model.rel_error, lstm_model.rel_error])
+    # # plot data for one forecasting method/model prediction
+    # else:
+    #     plot_data.plot_one_method(MODEL, f"{MAT_GROUP} Forecast for {FORECAST_SIZE} Months")
+    # plt.show()
+    return arima_model.rel_error
+
+
+def main():
+    # Grid Search for best parameters for a single horizon
+    # choose the horizon by changing the FORECAST_SIZE variable
+    best_rel_error = [2.0, 0.0, 0.0, 0.0]
+    for auto_reg in tqdm(np.arange(0, 10, 1)):
+        for diff in np.arange(0, 10, 1):
+            for mov_avg in np.arange(0, 10, 1):
+                temp_rel_error = run(auto_reg, diff, mov_avg, FORECAST_SIZE)
+                if temp_rel_error < best_rel_error[0]:
+                    best_rel_error = [temp_rel_error, auto_reg, diff, mov_avg]
+    print("BEST RELATIVE ERROR:")
+    print(best_rel_error[0])
+    print()
+    print("WITH PARAMETERS:")
+    print(best_rel_error[1:])
+    print()
+    print("RESULTS FOR ALL HORIZONS WITH BEST PARAMETERS:")
+    # results for forecasting in months 3, 6, 9, 12, 15, 18 with best parameters
+    for forecast_size in range(3, 21, 3):
+        print(f"\t{forecast_size} MONTHS FORECAST ERROR:")
+        rel_error = run(best_rel_error[1], best_rel_error[2], best_rel_error[3], forecast_size)
+        print(f"\t{rel_error}")
+        print()
 
 
 if __name__ == "__main__":
