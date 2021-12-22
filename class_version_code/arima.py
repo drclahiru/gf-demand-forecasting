@@ -1,5 +1,5 @@
 from class_version_code.forecast import Forecast
-from statsmodels.tsa.arima.model import ARIMA
+from  statsmodels.tsa.arima.model import ARIMA
 import pandas as pd
 
 
@@ -49,6 +49,8 @@ class Arima(Forecast):
         self.test.index = pd.to_datetime(self.test.index)
         # initalize the model
         model = ARIMA(self.train.values, order=(self.auto_regression_order, self.differencing_order, self.moving_average_order))
+        # testing
+        ARIMA.initialize_approximate_diffuse(model,variance=None)
         # fit the model
         model_fit = model.fit()
         # make predictions

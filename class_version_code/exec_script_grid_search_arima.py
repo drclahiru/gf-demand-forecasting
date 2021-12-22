@@ -23,7 +23,7 @@ warnings.simplefilter(action='ignore', category=UserWarning)
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 # path from which we extract product group data
-SOURCE_PATH = '..\\prepared_data\\DBS_2SMUE_10Y_Prepared.csv'
+SOURCE_PATH = '..\\data\\DBS_2SMUE_10Y_Prepared.csv'
 
 # Choose whether you want to forecast for the whole product group or just for material group
 # Choices:
@@ -306,4 +306,13 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    paths = ['..\\data\\DBS_SUPM2_10Y_Prepared.csv', '..\\data\\DBS_2SMUE_10Y_Prepared.csv',
+             '..\\data\\DBS_APSMA_10Y_Prepared.csv', '..\\data\\DBS_JET_10Y_Prepared.csv',
+             '..\\data\\DBS_KP_10Y_Prepared.csv', '..\\data\\DBS_SB000_10Y_Prepared.csv',
+             '..\\data\\DBS_CIRSC_10Y_Prepared.csv', '..\\data\\DBS_ACOEM_10Y_Prepared.csv',
+             '..\\data\\DBS_UNICC_10Y_Prepared.csv', '..\\data\\DBS_UPO15_10Y_Prepared.csv']
+
+    for i in paths:
+        print(i)
+        SOURCE_PATH = i
+        main()

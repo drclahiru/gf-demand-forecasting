@@ -23,7 +23,7 @@ warnings.simplefilter(action='ignore', category=UserWarning)
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 # path from which we extract product group data
-SOURCE_PATH = '..\\prepared_data\\DBS_2SMUE_10Y_Prepared.csv'
+SOURCE_PATH = '..\\data\DBS_SUPM2_10Y_Prepared.csv'
 
 # Choose whether you want to forecast for the whole product group or just for material group
 # Choices:
@@ -44,7 +44,7 @@ MODEL = "holt"
 
 # parameters for forecasting
 TRAINING_SIZE = 102
-FORECAST_SIZE = 18
+FORECAST_SIZE = 9
 
 # parameters for Holts method
 SMOOTH_LVL = .6
@@ -52,9 +52,9 @@ SMOOTH_SLOPE = .5
 DAMPED_TREND = .2
 
 # parameters for the ARIMA model
-AUTO_REGRESSION = 1
+AUTO_REGRESSION = 4
 DIFFERENCING = 1
-MOVING_AVREAGE = 3
+MOVING_AVREAGE = 9
 
 # parameters for the LSTM model
 NUM_OF_EPOCH = 100
