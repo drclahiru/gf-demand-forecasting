@@ -1,5 +1,4 @@
 import math
-import numpy as np
 
 import pandas as pd
 from datetime import datetime
@@ -46,24 +45,19 @@ class Forecast:
         rel_error = sum(forecast_errors) * 1.0 / len(self.test)
         self.rel_error = rel_error
 
-    def calculate_MAPE(predictions, test):
-        """
-               Calculates the mean percentage error between the forecasted predictions and
-               the time series data-points used for testing
+    def calculate_mase(self):
+        forecast_errors = [abs(self.test[i] - self.predictions[i]) for i in range(len(self.test))]
+        mean_absolute_error = sum(forecast_errors) / len(self.test)
+        naive_forecast_errors = [abs(self.test[i] - self.test[i-1]) for i in range(1, len(self.test))]
+        mean_absolute_error_naive = sum(naive_forecast_errors) / (len(self.test)-1)
+        mas_error = mean_absolute_error / mean_absolute_error_naive
+        self.rel_error = mas_error
 
-         """
-        return np.mean(np.abs((test - predictions) / test)) * 100
-
-    def calculate_MAE(predictions, test):
-        return 0
-
-    def calculate_RMSE(predictions, test):
-        """
-               Calculates the root mean square error between the forecasted predictions and
-               the time series data-points used for testing
-
-         """
-        return math.sqrt(np.square(np.subtract(test, predictions)).mean())
+    def calculate_rmse(self):
+        forecast_errors = [(self.test[i] - self.predictions[i])**2 for i in range(len(self.test))]
+        ms_error = sum(forecast_errors) / len(self.test)
+        rms_error = math.sqrt(ms_error)
+        self.rel_error = rms_error
 
     def divide_data(self, unit_data):
         """
