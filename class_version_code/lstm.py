@@ -27,15 +27,22 @@ class Lstm(Forecast):
         dimensionality of the output space for the LSTM layers
     look_back : int
         the number of months that will go as input to the lstm
+    learning_rate : float
+        learning rate of the lstm model
+    activation : str
+        activation function of the lstm model
     do_print : bool
         a flag that decides if we will print the method summary
     """
 
-    def __init__(self, window_size, forecast_size, num_of_epoch, output_size, look_back, do_print=False):
+    def __init__(self, window_size, forecast_size, num_of_epoch, output_size,
+                 look_back, learning_rate=0.001, activation="tanh", do_print=False):
         Forecast.__init__(self, window_size, forecast_size, "LSTM Model")
         self.num_of_epoch = num_of_epoch
         self.output_size = output_size
         self.look_back = look_back
+        self.learning_rate = learning_rate
+        self.activation = activation
         self.do_print = do_print
         self.scaler = None
 
@@ -67,12 +74,13 @@ class Lstm(Forecast):
         model = Sequential()
         model.add(
             LSTM(self.output_size,
-                 activation='relu',
-                 input_shape=(self.look_back, 1))
+                 input_shape=(self.look_back, 1),
+                 activation=self.activation)
         )
         model.add(Dense(1))
         # add learning rate decay to stabilize the training process
-        l_rate = ExponentialDecay(0.001, decay_steps=len(train_generator), decay_rate=0.5 ** (2.0 / self.num_of_epoch))
+        l_rate = ExponentialDecay(self.learning_rate, decay_steps=len(train_generator),
+                                  decay_rate=0.5 ** (2.0 / self.num_of_epoch))
         adam = Adam(learning_rate=l_rate)
         model.compile(optimizer=adam, loss='mse')
         # fitting the model with the generator and deciding whether we want to print the progress
