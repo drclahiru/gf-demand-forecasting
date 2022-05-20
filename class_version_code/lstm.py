@@ -72,16 +72,19 @@ class Lstm(Forecast):
                                               batch_size=1)
         # defining the model
         model = Sequential()
+        # input layer
         model.add(
             LSTM(self.output_size,
                  input_shape=(self.look_back, 1),
                  activation=self.activation)
         )
+        # output layer
         model.add(Dense(1))
         # add learning rate decay to stabilize the training process
         l_rate = ExponentialDecay(self.learning_rate, decay_steps=len(train_generator),
                                   decay_rate=0.5 ** (2.0 / self.num_of_epoch))
         adam = Adam(learning_rate=l_rate)
+        # model compilation
         model.compile(optimizer=adam, loss='mse')
         # fitting the model with the generator and deciding whether we want to print the progress
         model.fit_generator(train_generator, epochs=self.num_of_epoch, verbose=(1 if self.do_print else 0))

@@ -3,12 +3,15 @@ import pandas as pd
 from skopt import gp_minimize
 from skopt.space import Real
 from skopt.utils import use_named_args
+from statsmodels.tsa import arima_model
 
 from class_version_code.holt import Holts
 from class_version_code.plot_data import PlotData
 
 # path from which we extract product group data
-SOURCE_PATH = '../prepared_data/DBS_2SMUE_10Y_Prepared.csv'
+from hyperparameter_opt_test.try_lstm import lstm_model
+
+SOURCE_PATH = '../prepared_data/DBS_ACOEM_10Y_Prepared.csv'
 
 # Choose whether you want to forecast for the whole product group or just for material group
 # Choices:
@@ -31,7 +34,7 @@ MODEL = "holt"
 
 # parameters for forecasting
 TRAINING_SIZE = 102
-FORECAST_SIZE = 18
+FORECAST_SIZE = 9
 
 # parameters for Holts method
 SMOOTH_LVL = .6
@@ -54,9 +57,10 @@ PLOT_SIZE = 15
 # do we print the method and model summaries as well as their progression
 DO_PRINT = False
 
-dim_smooth_lvl = Real(low=0.0001, high=1, name='smooth_lvl')
-dim_smooth_slope = Real(low=0.0001, high=1, name='smooth_slope')
-dim_damped_trend = Real(low=0.0001, high=1, name='damped_trend')
+# hyper parameters as ranges
+dim_smooth_lvl = Real(low=0.0001, high=1.0, name='smooth_lvl')
+dim_smooth_slope = Real(low=0.0001, high=1.0, name='smooth_slope')
+dim_damped_trend = Real(low=0.0001, high=1.0, name='damped_trend')
 
 dimensions = [dim_smooth_lvl, dim_smooth_slope, dim_damped_trend]
 
@@ -175,7 +179,7 @@ def fitness(smooth_lvl, smooth_slope, damped_trend):
     holts_model = Holts(TRAINING_SIZE, FORECAST_SIZE, smooth_lvl, smooth_slope, damped_trend, do_print=DO_PRINT)
     data = pd.read_csv(SOURCE_PATH, header=0)
     unit_data = combine_material_groups(data)
-    holts_model.forecast(combine_material_groups(data))
+    holts_model.forecast(unit_data)
     holts_model.calculate_relative_error()
     rel_error = holts_model.rel_error
 
@@ -199,13 +203,13 @@ def fitness(smooth_lvl, smooth_slope, damped_trend):
         # initialize the data plot class
         plot_data = PlotData(PLOT_SIZE, holts_model.train, holts_model.test, predictions)
 
-        # # plot data with all of the forecasting method/model predictions
-        # if MODEL == 'all':
-        #     plot_data.plot_data(f"{MAT_GROUP} Forecast for {FORECAST_SIZE} Months (KP)",
-        #                         [holts_model.rel_error, arima_model.rel_error, lstm_model.rel_error])
-        # # plot data for one forecasting method/model prediction
-        # else:
-        #     plot_data.plot_one_method(MODEL, f"{MAT_GROUP} Forecast for {FORECAST_SIZE} Months")
+        # plot data with all of the forecasting method/model predictions
+        if MODEL == 'all':
+            plot_data.plot_data(f"{MAT_GROUP} Forecast for {FORECAST_SIZE} Months (KP)",
+                                [holts_model.rel_error, arima_model.rel_error, lstm_model.rel_error])
+        # plot data for one forecasting method/model prediction
+        else:
+            plot_data.plot_one_method(MODEL, f"{MAT_GROUP} Forecast for {FORECAST_SIZE} Months")
         plot_data.plot_one_method(MODEL, f"{MAT_GROUP} Forecast for {FORECAST_SIZE} Months")
         plt.show()
 
@@ -216,6 +220,8 @@ def main():
     search_result = gp_minimize(func=fitness, dimensions=dimensions, acq_func='EI',  # Expected Improvement.
                                 n_calls=40, x0=default_parameters)
 
+    print("**************************")
+    print("Product group: ", SOURCE_PATH[21:-17])
     # print the best relative error
     print("Best relative error: ", best_rel_error)
     # print the best hyper parameters
@@ -223,6 +229,10 @@ def main():
     print("smooth_lvl: ", best_smooth_lvl)
     print("smooth_slope: ", best_smooth_slope)
     print("damped_trend: ", best_damped_trend)
+
+    print("==================")
+    print("Product group: ", SOURCE_PATH[21:-17])
+    print(round(best_smooth_lvl,1), round(best_smooth_slope,1), round(best_damped_trend,1))
 
 
 if __name__ == "__main__":

@@ -1,3 +1,5 @@
+import winsound
+
 import matplotlib.pyplot as plt
 import pandas as pd
 from skopt import gp_minimize
@@ -8,8 +10,12 @@ from class_version_code.holt import Holts
 from class_version_code.lstm import Lstm
 from class_version_code.plot_data import PlotData
 
+import time
+from datetime import timedelta
+start_time = time.monotonic()
+
 # path from which we extract product group data
-SOURCE_PATH = '../prepared_data/DBS_2SMUE_10Y_Prepared.csv'
+SOURCE_PATH = '../prepared_data/DBS_UNICC_10Y_Prepared.csv'
 
 # Choose whether you want to forecast for the whole product group or just for material group
 # Choices:
@@ -32,7 +38,7 @@ MODEL = "lstm"
 
 # parameters for forecasting
 TRAINING_SIZE = 102
-FORECAST_SIZE = 18
+FORECAST_SIZE = 9
 
 # parameters for Holts method
 SMOOTH_LVL = .6
@@ -55,15 +61,16 @@ PLOT_SIZE = 15
 # do we print the method and model summaries as well as their progression
 DO_PRINT = False
 
-dim_num_of_epoch = Integer(low=2, high=100, name='num_of_epoch')
+# hyper parameters as ranges
+dim_num_of_epoch = Integer(low=1, high=100, name='num_of_epoch')
 dim_output_size = Integer(low=1, high=20, name='output_size')
-dim_look_back = Integer(low=5, high=101, name='look_back')
-dim_learning_rate = Real(low=1e-6, high=1e-2, prior='log-uniform', name='learning_rate')
+dim_look_back = Integer(low=10, high=101, name='look_back')
+dim_learning_rate = Real(low=1e-6, high=1e-1, prior='log-uniform', name='learning_rate')
 dim_activation = Categorical(categories=['tanh', 'sigmoid'], name='activation')
 
 dimensions = [dim_num_of_epoch, dim_output_size, dim_look_back, dim_learning_rate, dim_activation]
 
-default_parameters = [2, 1, 5, 1e-6, 'tanh']
+default_parameters = [1, 1, 10, 1e-6, 'tanh']
 best_rel_error = 1.0
 
 
@@ -207,11 +214,11 @@ def fitness(num_of_epoch, output_size, look_back, learning_rate, activation):
         best_learning_rate = learning_rate
         best_activation = activation
 
-        predictions = [0.0, 0.0, grundfos_forecasting(data, lstm_model, FORECAST_SIZE)]
+        # predictions = [0.0, 0.0, grundfos_forecasting(data, lstm_model, FORECAST_SIZE)]
         # divide the data to be used for plotting
-        lstm_model.divide_data(unit_data)
-        # initialize the data plot class
-        plot_data = PlotData(PLOT_SIZE, lstm_model.train, lstm_model.test, predictions)
+        # lstm_model.divide_data(unit_data)
+        # # initialize the data plot class
+        # plot_data = PlotData(PLOT_SIZE, lstm_model.train, lstm_model.test, predictions)
 
         # # plot data with all of the forecasting method/model predictions
         # if MODEL == 'all':
@@ -220,16 +227,18 @@ def fitness(num_of_epoch, output_size, look_back, learning_rate, activation):
         # # plot data for one forecasting method/model prediction
         # else:
         #     plot_data.plot_one_method(MODEL, f"{MAT_GROUP} Forecast for {FORECAST_SIZE} Months")
-        plot_data.plot_one_method(MODEL, f"{MAT_GROUP} Forecast for {FORECAST_SIZE} Months")
-        plt.show()
+        # plot_data.plot_one_method(MODEL, f"{MAT_GROUP} Forecast for {FORECAST_SIZE} Months")
+        # plt.show()
 
     return rel_error
 
 
 def main():
     search_result = gp_minimize(func=fitness, dimensions=dimensions, acq_func='EI',  # Expected Improvement.
-                                n_calls=20, x0=default_parameters)
+                                n_calls=81, x0=default_parameters)
 
+    print("**************************")
+    print("Product group: ", SOURCE_PATH[21:-17])
     # print the best relative error
     print("Best relative error: ", best_rel_error)
     # print the best hyper parameters
@@ -239,6 +248,13 @@ def main():
     print("look_back: ", best_look_back)
     print("learning_rate: ", best_learning_rate)
     print("activation: ", best_activation)
+
+    end_time = time.monotonic()
+    print("Duration: ", timedelta(seconds=end_time - start_time))
+
+    frequency = 4000  # Set Frequency To 2500 Hertz
+    duration = 2000  # Set Duration To 1000 ms == 1 second
+    winsound.Beep(frequency, duration)
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@ from class_version_code.holt import Holts
 from class_version_code.plot_data import PlotData
 
 # path from which we extract product group data
-SOURCE_PATH = '../prepared_data/DBS_2SMUE_10Y_Prepared.csv'
+SOURCE_PATH = '../prepared_data/DBS_SUPM2_10Y_Prepared.csv'
 
 # Choose whether you want to forecast for the whole product group or just for material group
 # Choices:
@@ -32,7 +32,7 @@ MODEL = "arima"
 
 # parameters for forecasting
 TRAINING_SIZE = 102
-FORECAST_SIZE = 18
+FORECAST_SIZE = 9
 
 # parameters for Holts method
 SMOOTH_LVL = .6
@@ -55,13 +55,14 @@ PLOT_SIZE = 15
 # do we print the method and model summaries as well as their progression
 DO_PRINT = False
 
+# hyper parameters as ranges
 dim_auto_regression = Integer(low=1, high=10, name='auto_regression')
 dim_differencing = Integer(low=1, high=10, name='differencing')
-dim_moving_average = Integer(low=3, high=10, name='moving_average')
+dim_moving_average = Integer(low=1, high=10, name='moving_average')
 
 dimensions = [dim_auto_regression, dim_differencing, dim_moving_average]
 
-default_parameters = [1, 1, 3]
+default_parameters = [1, 1, 1]
 best_rel_error = 1.0
 
 
@@ -167,16 +168,16 @@ def fitness(auto_regression, differencing, moving_average):
         the relative error for the given set of hyper parameters
     """
     # Print the hyper parameters
-    print('auto_regression:', auto_regression)
-    print('differencing:', differencing)
-    print('moving_average:', moving_average)
-    print()
+    # print('auto_regression:', auto_regression)
+    # print('differencing:', differencing)
+    # print('moving_average:', moving_average)
+    # print()
 
     # initialize the forecasting model
     arima_model = Arima(TRAINING_SIZE, FORECAST_SIZE, auto_regression, differencing, moving_average, do_print=DO_PRINT)
     data = pd.read_csv(SOURCE_PATH, header=0)
     unit_data = combine_material_groups(data)
-    arima_model.forecast(combine_material_groups(data))
+    arima_model.forecast(unit_data)
     arima_model.calculate_relative_error()
     rel_error = arima_model.rel_error
 
@@ -194,11 +195,11 @@ def fitness(auto_regression, differencing, moving_average):
         best_differencing = differencing
         best_moving_average = moving_average
 
-        predictions = [0.0, grundfos_forecasting(data, arima_model, FORECAST_SIZE), 0.0]
-        # divide the data to be used for plotting
-        arima_model.divide_data(unit_data)
-        # initialize the data plot class
-        plot_data = PlotData(PLOT_SIZE, arima_model.train, arima_model.test, predictions)
+        # predictions = [0.0, grundfos_forecasting(data, arima_model, FORECAST_SIZE), 0.0]
+        # # divide the data to be used for plotting
+        # arima_model.divide_data(unit_data)
+        # # initialize the data plot class
+        # plot_data = PlotData(PLOT_SIZE, arima_model.train, arima_model.test, predictions)
 
         # # plot data with all of the forecasting method/model predictions
         # if MODEL == 'all':
@@ -207,16 +208,18 @@ def fitness(auto_regression, differencing, moving_average):
         # # plot data for one forecasting method/model prediction
         # else:
         #     plot_data.plot_one_method(MODEL, f"{MAT_GROUP} Forecast for {FORECAST_SIZE} Months")
-        plot_data.plot_one_method(MODEL, f"{MAT_GROUP} Forecast for {FORECAST_SIZE} Months")
-        plt.show()
+        # plot_data.plot_one_method(MODEL, f"{MAT_GROUP} Forecast for {FORECAST_SIZE} Months")
+        # plt.show()
 
     return rel_error
 
 
 def main():
     search_result = gp_minimize(func=fitness, dimensions=dimensions, acq_func='EI',  # Expected Improvement.
-                                n_calls=40, x0=default_parameters)
+                                n_calls=20, x0=default_parameters)
 
+    print("**************************")
+    print("Product group: ", SOURCE_PATH[21:-17])
     # print the best relative error
     print("Best relative error: ", best_rel_error)
     # print the best hyper parameters
@@ -224,6 +227,10 @@ def main():
     print("auto_regression: ", best_auto_regression)
     print("differencing: ", best_differencing)
     print("moving_average: ", best_moving_average)
+
+    print("==================")
+    print("Product group: ", SOURCE_PATH[21:-17])
+    print(best_auto_regression, best_differencing, best_moving_average)
 
 
 if __name__ == "__main__":
