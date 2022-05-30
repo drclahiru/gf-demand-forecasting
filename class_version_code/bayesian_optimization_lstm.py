@@ -1,3 +1,4 @@
+import warnings
 import winsound
 
 import matplotlib.pyplot as plt
@@ -5,7 +6,9 @@ import pandas as pd
 from skopt import gp_minimize
 from skopt.space import Real, Categorical, Integer
 from skopt.utils import use_named_args
+from tensorflow.keras import backend as K
 
+from class_version_code.exec_script_grid_search_lstm import combine_material_groups
 from class_version_code.holt import Holts
 from class_version_code.lstm import Lstm
 from class_version_code.plot_data import PlotData
@@ -14,8 +17,10 @@ import time
 from datetime import timedelta
 start_time = time.monotonic()
 
-# path from which we extract product group data
-SOURCE_PATH = '../prepared_data/DBS_UNICC_10Y_Prepared.csv'
+# ignoring UserWarnings
+warnings.simplefilter(action='ignore', category=UserWarning)
+
+
 
 # Choose whether you want to forecast for the whole product group or just for material group
 # Choices:
@@ -36,9 +41,12 @@ MAT_COL_NAME = "MD Material Group"
 #   "all" - for all of the methods and models
 MODEL = "lstm"
 
+# path from which we extract product group data
+SOURCE_PATH = '../prepared_data/DBS_KP_10Y_Prepared.csv'
+
 # parameters for forecasting
 TRAINING_SIZE = 102
-FORECAST_SIZE = 9
+FORECAST_SIZE = 3
 
 # parameters for Holts method
 SMOOTH_LVL = .6
@@ -74,88 +82,6 @@ default_parameters = [1, 1, 10, 1e-6, 'tanh']
 best_rel_error = 1.0
 
 
-def grundfos_forecasting(prepared_data, product_group_exp_smoothing_model, forecast_size):
-    simple_exp_model = Holts(TRAINING_SIZE, forecast_size, 0.2, 0, 0, is_damped=False,
-                             do_print=DO_PRINT)
-    # execute simple exponential smoothing on all material groups
-    total_mg_predictions = []
-    for material_group in prepared_data[MAT_COL_NAME]:
-        filtered_data = prepared_data[prepared_data[MAT_COL_NAME] == material_group].values[0][1:]
-        new_index = pd.to_datetime(prepared_data.columns[1:])
-        unit_data = pd.Series(filtered_data, new_index)
-        simple_exp_model.forecast(unit_data)
-        mg_predictions = simple_exp_model.predictions
-        total_mg_predictions.append(mg_predictions)
-    # sum up the material group predictions
-    pg_predictions = []
-    for i in range(len(total_mg_predictions[0])):
-        temp_sum = 0.0
-        for j in range(len(prepared_data[MAT_COL_NAME])):
-            temp_sum += total_mg_predictions[j][i]
-        pg_predictions.append(temp_sum)
-    # create the ratios for every material group withing the product group
-    total_mg_ratio_list = []
-    for i in range(len(total_mg_predictions)):
-        mg_ratio_list = []
-        for j in range(len(total_mg_predictions[i])):
-            if pg_predictions[j] == 0.0:
-                mg_ratio_list.append(0.0)
-            else:
-                mg_ratio_list.append(total_mg_predictions[i][j] / pg_predictions[j])
-        total_mg_ratio_list.append(mg_ratio_list)
-    # forecast for the product group
-    product_group_data = combine_material_groups(prepared_data)
-    product_group_exp_smoothing_model.forecast(product_group_data)
-    product_group_predictions = product_group_exp_smoothing_model.predictions
-    # use the ratios and the product group redictions to get better material group predictions
-    total_mg_final_predictions = []
-    for i in range(len(total_mg_ratio_list)):
-        mg_final_pred = []
-        for j in range(len(total_mg_ratio_list[i])):
-            mg_final_pred.append(total_mg_ratio_list[i][j] * product_group_predictions[j])
-        total_mg_final_predictions.append(mg_final_pred)
-    # sum up all of the final material group predictions to get the product group predictions
-    total_pg_final_prediction = []
-    for i in range(len(total_mg_final_predictions[0])):
-        temp_sum = 0.0
-        for j in range(len(prepared_data[MAT_COL_NAME])):
-            temp_sum += total_mg_final_predictions[j][i]
-        total_pg_final_prediction.append(temp_sum)
-    # calcualte the relative error
-    product_group_exp_smoothing_model.predictions = total_pg_final_prediction
-    product_group_exp_smoothing_model.calculate_relative_error()
-
-    return total_pg_final_prediction
-
-
-def combine_material_groups(data):
-    """
-    combine all of the material group unit values of the product group
-
-    Parameters
-    ----------
-    data : Series
-        the entire dataset separated by material groups
-
-    Returns
-    ----------
-    unit_data: Series
-        the summed up product group time series
-    """
-    total_unit_data_values = None
-    # sum up the unit numbers for each material group
-    for mat_group in data[MAT_COL_NAME]:
-        filtered_data = data[data[MAT_COL_NAME] == mat_group].values[0][1:]
-        if total_unit_data_values is None:
-            # initalize the total unit number list
-            total_unit_data_values = [0.0] * len(filtered_data)
-        total_unit_data_values = [x + y for x, y in zip(total_unit_data_values, filtered_data)]
-    new_index = pd.to_datetime(data.columns[1:])
-    # create the final time series
-    unit_data = pd.Series(total_unit_data_values, new_index)
-    return unit_data
-
-
 @use_named_args(dimensions=dimensions)
 def fitness(num_of_epoch, output_size, look_back, learning_rate, activation):
     """
@@ -180,12 +106,12 @@ def fitness(num_of_epoch, output_size, look_back, learning_rate, activation):
         the relative error for the given set of hyper parameters
     """
     # Print the hyper parameters
-    print('num_of_epoch:', num_of_epoch)
-    print('output_size:', output_size)
-    print('look_back:', look_back)
-    print('learning rate: {0:.1e}'.format(learning_rate))
-    print('activation:', activation)
-    print()
+    # print('num_of_epoch:', num_of_epoch)
+    # print('output_size:', output_size)
+    # print('look_back:', look_back)
+    # print('learning rate: {0:.1e}'.format(learning_rate))
+    # print('activation:', activation)
+    # print()
 
     # initialize the forecasting model
     lstm_model = Lstm(TRAINING_SIZE, FORECAST_SIZE, num_of_epoch, output_size, look_back, learning_rate=learning_rate,
@@ -196,7 +122,7 @@ def fitness(num_of_epoch, output_size, look_back, learning_rate, activation):
     lstm_model.calculate_relative_error()
     rel_error = lstm_model.rel_error
 
-    print("Relative error:" + str(rel_error) + "\n")
+    # print("Relative error:" + str(rel_error) + "\n")
 
     global best_rel_error
     global best_num_of_epoch
@@ -230,17 +156,22 @@ def fitness(num_of_epoch, output_size, look_back, learning_rate, activation):
         # plot_data.plot_one_method(MODEL, f"{MAT_GROUP} Forecast for {FORECAST_SIZE} Months")
         # plt.show()
 
+    del lstm_model
+
+    K.clear_session()
+
     return rel_error
 
 
 def main():
     search_result = gp_minimize(func=fitness, dimensions=dimensions, acq_func='EI',  # Expected Improvement.
-                                n_calls=81, x0=default_parameters)
+                                n_calls=40, x0=default_parameters)
 
     print("**************************")
     print("Product group: ", SOURCE_PATH[21:-17])
+    print("Forecast size: ", FORECAST_SIZE)
     # print the best relative error
-    print("Best relative error: ", best_rel_error)
+    print("Best relative error:** ", best_rel_error)
     # print the best hyper parameters
     print("The best hyper parameters are: ")
     print("num_of_epoch: ", best_num_of_epoch)
@@ -252,8 +183,12 @@ def main():
     end_time = time.monotonic()
     print("Duration: ", timedelta(seconds=end_time - start_time))
 
-    frequency = 4000  # Set Frequency To 2500 Hertz
-    duration = 2000  # Set Duration To 1000 ms == 1 second
+    print("**************************")
+    print("Product group: ", SOURCE_PATH[21:-17])
+    print(best_num_of_epoch, best_output_size, best_look_back, best_learning_rate, best_activation)
+
+    frequency = 500  # Set Frequency To 2500 Hertz
+    duration = 500  # Set Duration To 1000 ms == 1 second
     winsound.Beep(frequency, duration)
 
 

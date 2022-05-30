@@ -16,6 +16,10 @@ from class_version_code.plot_data import PlotData
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
+import time
+from datetime import timedelta
+start_time = time.monotonic()
+
 # ignoring warnings from statsmodels
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=ConvergenceWarning)
@@ -23,7 +27,7 @@ warnings.simplefilter(action='ignore', category=UserWarning)
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 # path from which we extract product group data
-SOURCE_PATH = '..\\prepared_data\\DBS_2SMUE_10Y_Prepared.csv'
+SOURCE_PATH = '..\\prepared_data\\DBS_CIRSC_10Y_Prepared.csv'
 
 # Choose whether you want to forecast for the whole product group or just for material group
 # Choices:
@@ -44,7 +48,7 @@ MODEL = "holt"
 
 # parameters for forecasting
 TRAINING_SIZE = 102
-FORECAST_SIZE = 18
+FORECAST_SIZE = 9
 
 # parameters for Holts method
 SMOOTH_LVL = .6
@@ -284,25 +288,30 @@ def main():
     # Grid Search for best parameters for a single horizon
     # choose the horizon by changing the FORECAST_SIZE variable
     best_rel_error = [2.0, 0.0, 0.0, 0.0]
-    for i in tqdm(np.arange(0.1, 1.0, 0.1)):
-        for j in np.arange(0.1, 1.0, 0.1):
-            for k in np.arange(0.1, 1.0, 0.1):
-                temp_rel_error = run(i, j, k, FORECAST_SIZE)
+    for smooth_lvl in tqdm(np.arange(0.1, 1.0, 0.1)):
+        for smooth_slope in np.arange(0.1, 1.0, 0.1):
+            for damped_trend in np.arange(0.1, 1.0, 0.1):
+                temp_rel_error = run(smooth_lvl, smooth_slope, damped_trend, FORECAST_SIZE)
                 if temp_rel_error < best_rel_error[0]:
-                    best_rel_error = [temp_rel_error, i, j, k]
-    print("BEST RELATIVE ERROR:")
-    print(best_rel_error[0])
-    print()
-    print("WITH PARAMETERS:")
-    print(best_rel_error[1:])
-    print()
-    print("RESULTS FOR ALL HORIZONS WITH BEST PARAMETERS:")
-    # results for forecasting in months 3, 6, 9, 12, 15, 19 with best parameters
-    for forecast_size in range(3, 21, 3):
-        print(f"\t{forecast_size} MONTHS FORECAST ERROR:")
-        rel_error = run(best_rel_error[1], best_rel_error[2], best_rel_error[3], forecast_size)
-        print(f"\t{rel_error}")
-        print()
+                    best_rel_error = [temp_rel_error, smooth_lvl, smooth_slope, damped_trend]
+    # print("BEST RELATIVE ERROR:")
+    # print(best_rel_error[0])
+    # print()
+    # print("WITH PARAMETERS:")
+    # print(best_rel_error[1:])
+    # print()
+    # print("RESULTS FOR ALL HORIZONS WITH BEST PARAMETERS:")
+    # # results for forecasting in months 3, 6, 9, 12, 15, 19 with best parameters
+    # for forecast_size in range(3, 21, 3):
+    #     print(f"\t{forecast_size} MONTHS FORECAST ERROR:")
+    #     rel_error = run(best_rel_error[1], best_rel_error[2], best_rel_error[3], forecast_size)
+    #     print(f"\t{rel_error}")
+    #     print()
+
+    print("**************************")
+    print("Product group: ", SOURCE_PATH[21:-17])
+    end_time = time.monotonic()
+    print("Duration: ", timedelta(seconds=end_time - start_time))
 
 
 if __name__ == "__main__":

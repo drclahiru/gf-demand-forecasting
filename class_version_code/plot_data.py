@@ -82,6 +82,37 @@ class PlotData:
         plt.title(title)
         plt.legend()
 
+    def plot_optimization(self, title):
+        """
+        Plots the real data-points as well as the predictions from the Bayesian optimization and the grid search
+
+        Parameters
+        ----------
+        title : str
+            title of the plot
+        """
+        # take only the last "self.plot_size" number of points to show on plot
+        train = self.train[-self.plot_size:]
+        fig, ax = plt.subplots(figsize=(12, 6))
+        # real data is plotted in grey
+        ax.plot(self.test.index, self.test.values, color="gray")
+        ax.plot(train.index, train.values, color='gray')
+        # predictions are plotted in different colors
+        ax.plot(self.test.index, self.predictions[1], label="Grid search", color='orange')
+        ax.plot(self.test.index, self.predictions[2], label="Bayesian opt", color='blue')
+
+        # uncomment to draw the graph for the whole dataset
+        # ax.plot(self.test.index , self.predictions[1], label="grid_search", color='blue')
+        # ax.plot(self.train.index, self.train.values, label="bayesian_opt", color='orange')
+        # ax.plot(self.train.index, self.train.values, label="grid_search", color='blue')
+        # ax.plot(self.test.index, self.predictions[2], label="bayesian_opt", color='orange')
+
+        # create a line that tells us when the forecasting starts
+        ax.vlines(train.index[-1], 0, max(list(self.train.values) + list(self.test.values)), linestyle='--', color='r',
+                  label='Start of forecast')
+        plt.title(title)
+        plt.legend()
+
 
 def main():
     data = pd.read_csv('..\\prepared_data\\DBS_SYSCO_10Y_Prepared.csv', header=0)

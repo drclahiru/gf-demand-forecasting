@@ -42,14 +42,7 @@ class Forecast:
         """
         forecast_errors = [abs(abs(self.test[i]) - abs(self.predictions[i])) / max(abs(self.test[i]), abs(self.predictions[i]))
                            for i in range(len(self.test))]
-
-
-
         rel_error = sum(forecast_errors) * 1.0 / len(self.test)
-        if rel_error > 1:
-            for i in range(len(self.test)):
-                print(self.test[i], self.predictions[i])
-
         self.rel_error = rel_error
 
     def calculate_mase(self):
